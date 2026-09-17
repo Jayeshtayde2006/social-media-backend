@@ -1,21 +1,33 @@
 package com.socialmedia.social_media_backend.controller;
 
+import com.socialmedia.social_media_backend.dto.PostResponse;
 import com.socialmedia.social_media_backend.entity.Post;
+import com.socialmedia.social_media_backend.repository.CommentRepository;
+import com.socialmedia.social_media_backend.repository.LikeRepository;
 import com.socialmedia.social_media_backend.repository.PostRepository;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/posts")
 public class PostController {
 
     private final PostRepository postRepository;
+    private final LikeRepository likeRepository;
+    private final CommentRepository commentRepository;
 
-    public PostController(PostRepository postRepository) {
+    public PostController(
+            PostRepository postRepository,
+            LikeRepository likeRepository,
+            CommentRepository commentRepository) {
+
         this.postRepository = postRepository;
+        this.likeRepository = likeRepository;
+        this.commentRepository = commentRepository;
     }
 
     // Create Post
@@ -31,63 +43,91 @@ public class PostController {
         return postRepository.save(post);
     }
 
-    // Get All Posts
+    // Get All Posts with counts
     @GetMapping
-    public List<Post> getAllPosts() {
-        return postRepository.findAll();
+    public List<PostResponse> getAllPosts() {
+
+        return postRepository.findAll()
+                .stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    // Get Post By ID
+    // Get Post By ID with counts
     @GetMapping("/{id}")
-    public Post getPostById(@PathVariable Long id) {
+    public PostResponse getPostById(
+            @PathVariable Long id) {
 
-        return postRepository.findById(id)
+        Post post = postRepository.findById(id)
                 .orElseThrow(() ->
                         new RuntimeException("Post not found"));
+
+        return convertToResponse(post);
     }
 
     // Update Post
-   @PutMapping("/{id}")
-public Post updatePost(
-        @PathVariable Long id,
-        @RequestBody Post post,
-        Authentication authentication) {
+    @PutMapping("/{id}")
+    public Post updatePost(
+            @PathVariable Long id,
+            @RequestBody Post post,
+            Authentication authentication) {
 
-    Post existingPost = postRepository.findById(id)
-            .orElseThrow(() ->
-                    new RuntimeException("Post not found"));
+        Post existingPost = postRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Post not found"));
 
-    String loggedInEmail = authentication.getName();
+        String loggedInEmail = authentication.getName();
 
-    if (!existingPost.getUserEmail().equals(loggedInEmail)) {
-        throw new RuntimeException(
-                "You are not allowed to update this post");
+        if (!existingPost.getUserEmail().equals(loggedInEmail)) {
+            throw new RuntimeException(
+                    "You are not allowed to update this post");
+        }
+
+        existingPost.setContent(post.getContent());
+        existingPost.setImageUrl(post.getImageUrl());
+
+        return postRepository.save(existingPost);
     }
 
-    existingPost.setContent(post.getContent());
-    existingPost.setImageUrl(post.getImageUrl());
-
-    return postRepository.save(existingPost);
-}
     // Delete Post
-   @DeleteMapping("/{id}")
-public String deletePost(
-        @PathVariable Long id,
-        Authentication authentication) {
+    @DeleteMapping("/{id}")
+    public String deletePost(
+            @PathVariable Long id,
+            Authentication authentication) {
 
-    Post existingPost = postRepository.findById(id)
-            .orElseThrow(() ->
-                    new RuntimeException("Post not found"));
+        Post existingPost = postRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Post not found"));
 
-    String loggedInEmail = authentication.getName();
+        String loggedInEmail = authentication.getName();
 
-    if (!existingPost.getUserEmail().equals(loggedInEmail)) {
-        throw new RuntimeException(
-                "You are not allowed to delete this post");
+        if (!existingPost.getUserEmail().equals(loggedInEmail)) {
+            throw new RuntimeException(
+                    "You are not allowed to delete this post");
+        }
+
+        postRepository.delete(existingPost);
+
+        return "Post deleted successfully";
     }
 
-    postRepository.delete(existingPost);
+    // Convert Post to PostResponse
+    private PostResponse convertToResponse(Post post) {
 
-    return "Post deleted successfully";
-}
+        long likesCount =
+                likeRepository.findByPostId(post.getId()).size();
+
+        long commentsCount =
+                commentRepository.findByPostId(post.getId()).size();
+
+        return new PostResponse(
+                post.getId(),
+                post.getContent(),
+                post.getImageUrl(),
+                post.getUserEmail(),
+                post.getCreatedAt(),
+                likesCount,
+                commentsCount
+        );
+    }
 }

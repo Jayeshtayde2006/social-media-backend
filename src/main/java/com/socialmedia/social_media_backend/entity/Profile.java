@@ -21,6 +21,8 @@ private String userEmail;
 
     private String website;
 
+    private String fullName;
+
     public Profile() {
     }
 
@@ -71,4 +73,12 @@ private String userEmail;
     public void setWebsite(String website) {
         this.website = website;
     }
+
+    public String getFullName() {
+    return fullName;
+}
+
+public void setFullName(String fullName) {
+    this.fullName = fullName;
+}
 }

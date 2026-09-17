@@ -5,7 +5,6 @@ import com.socialmedia.social_media_backend.repository.LikeRepository;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import java.util.Optional;
 
 import java.util.List;
 
@@ -21,27 +20,26 @@ public class LikeController {
 
     // Add Like
     @PostMapping
-public Like addLike(
-        @RequestBody Like like,
-        Authentication authentication) {
+    public Like addLike(
+            @RequestBody Like like,
+            Authentication authentication) {
 
-    String userEmail = authentication.getName();
+        String userEmail = authentication.getName();
 
-    Optional<Like> existingLike =
-            likeRepository.findByPostIdAndUserEmail(
-                    like.getPostId(),
-                    userEmail
-            );
+        if (likeRepository
+                .findByPostIdAndUserEmail(
+                        like.getPostId(),
+                        userEmail)
+                .isPresent()) {
 
-    if (existingLike.isPresent()) {
-        throw new RuntimeException(
-                "You have already liked this post");
+            throw new RuntimeException(
+                    "You have already liked this post");
+        }
+
+        like.setUserEmail(userEmail);
+
+        return likeRepository.save(like);
     }
-
-    like.setUserEmail(userEmail);
-
-    return likeRepository.save(like);
-}
 
     // Get All Likes
     @GetMapping
@@ -58,25 +56,46 @@ public Like addLike(
                         new RuntimeException("Like not found"));
     }
 
-    // Remove Like
-  @DeleteMapping("/{id}")
-public String deleteLike(
-        @PathVariable Long id,
-        Authentication authentication) {
+    // Delete Like By Like ID
+    @DeleteMapping("/{id}")
+    public String deleteLike(
+            @PathVariable Long id,
+            Authentication authentication) {
 
-    Like existingLike = likeRepository.findById(id)
-            .orElseThrow(() ->
-                    new RuntimeException("Like not found"));
+        Like like = likeRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Like not found"));
 
-    String loggedInEmail = authentication.getName();
+        String loggedInEmail = authentication.getName();
 
-    if (!existingLike.getUserEmail().equals(loggedInEmail)) {
-        throw new RuntimeException(
-                "You are not allowed to remove this like");
+        if (!like.getUserEmail().equals(loggedInEmail)) {
+            throw new RuntimeException(
+                    "You are not allowed to delete this like");
+        }
+
+        likeRepository.delete(like);
+
+        return "Like deleted successfully";
     }
 
-    likeRepository.delete(existingLike);
+    // Unlike Post By Post ID
+    @DeleteMapping("/post/{postId}")
+    public String unlikePost(
+            @PathVariable Long postId,
+            Authentication authentication) {
 
-    return "Like removed successfully";
-}
+        String userEmail = authentication.getName();
+
+        Like like = likeRepository
+                .findByPostIdAndUserEmail(
+                        postId,
+                        userEmail)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "You have not liked this post"));
+
+        likeRepository.deleteById(like.getId());
+
+        return "Post unliked successfully";
+    }
 }

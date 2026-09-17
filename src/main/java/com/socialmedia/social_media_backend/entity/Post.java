@@ -1,6 +1,13 @@
 package com.socialmedia.social_media_backend.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "posts")
@@ -15,6 +22,8 @@ public class Post {
     private String imageUrl;
 
     private String userEmail;
+
+    private LocalDateTime createdAt;
 
     public Post() {
     }
@@ -49,5 +58,18 @@ public class Post {
 
     public void setUserEmail(String userEmail) {
         this.userEmail = userEmail;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
     }
 }
